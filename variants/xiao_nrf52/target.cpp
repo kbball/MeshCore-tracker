@@ -19,7 +19,9 @@ AutoDiscoverRTCClock rtc_clock(fallback_clock);
 EnvironmentSensorManager sensors;
 
 bool radio_init() {
-  rtc_clock.begin(Wire);
+#ifndef XIAO_NO_I2C
+  rtc_clock.begin(Wire);   // XIAO_NO_I2C: D6/D7 are needed for the GPS UART
+#endif
 
   return radio.std_init(&SPI);
 }
