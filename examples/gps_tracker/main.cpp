@@ -13,6 +13,7 @@
 #include <helpers/IdentityStore.h>
 #include <target.h>
 #include "TrackerGPS.h"
+#include "TrackerMotion.h"
 
 // From the base64 library. Not #included: it is a header-only implementation that BaseChatMesh.cpp already
 // compiles in, so including it here too would define every function twice.
@@ -353,6 +354,7 @@ class TrackerMesh : public BaseChatMesh {
   void printStatus() {
     printConfig();
     Serial.printf("state=%s\n", stateMarker());
+    Serial.printf("accel=%s irqs=%lu\n", tracker_motion_available() ? "yes" : "no", (unsigned long)tracker_motion_irq_count());
     TrackerFix fix;
     if (tracker_gps_get_fix(fix) && fix.valid) {
       char lat[16], lon[16];
@@ -417,6 +419,7 @@ class TrackerMesh : public BaseChatMesh {
     } else if (strcmp(args, "motion") == 0) {
       if (!parse_uint(val, n) || n < 1 || n > 255) return "motion must be 1-255";
       _prefs.motion_threshold = n;
+      tracker_motion_set_threshold(n);   // applies immediately
     } else if (strcmp(args, "freq") == 0) {
       float f = atof(val);
       if (f < 150.0f || f > 960.0f) return "freq must be 150-960 MHz";
@@ -458,6 +461,9 @@ class TrackerMesh : public BaseChatMesh {
       Serial.flush();
       delay(100);
       board.reboot();
+    } else if (strcmp(command, "accel") == 0) {   // diagnostics: raw accelerometer + interrupt counter
+      tracker_motion_dump(Serial);
+      Serial.println("OK");
     } else if (strcmp(command, "ver") == 0) {
       Serial.println(FIRMWARE_VER_TEXT);
       Serial.println("OK");
@@ -475,6 +481,7 @@ class TrackerMesh : public BaseChatMesh {
       Serial.println("   set move_dist <metres>      (GPS displacement that confirms movement)");
       Serial.println("   set motion <1-255>          (accelerometer sensitivity)");
       Serial.println("   set freq|bw|sf|cr|tx <value>");
+      Serial.println("   accel                       (accelerometer diagnostics)");
       Serial.println("   reboot");
       Serial.println("OK");
     } else if (*command) {
@@ -542,6 +549,7 @@ public:
   uint8_t getSfPref() const { return _prefs.sf; }
   uint8_t getCrPref() const { return _prefs.cr; }
   int8_t getTxPowerPref() const { return _prefs.tx_power_dbm; }
+  uint8_t getMotionPref() const { return _prefs.motion_threshold; }
 
   void begin(FILESYSTEM& fs) {
     _fs = &fs;
@@ -639,6 +647,10 @@ void setup() {
 
   InternalFS.begin();
   the_mesh.begin(InternalFS);
+
+  if (!tracker_motion_begin(the_mesh.getMotionPref())) {
+    Serial.println("accelerometer: not available (no motion detection)");
+  }
 
   radio_driver.setParams(the_mesh.getFreqPref(), the_mesh.getBwPref(), the_mesh.getSfPref(), the_mesh.getCrPref());
   radio_driver.setTxPower(the_mesh.getTxPowerPref());
