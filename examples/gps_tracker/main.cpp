@@ -18,6 +18,20 @@
 // compiles in, so including it here too would define every function twice.
 unsigned int decode_base64(const unsigned char input[], unsigned int input_length, unsigned char output[]);
 
+// Startup/shutdown beeps (boards with a buzzer) and a long-press power-off button (T-1000-E)
+#ifdef PIN_BUZZER
+  #include <helpers/ui/buzzer.h>
+  static genericBuzzer buzzer;
+#endif
+#if defined(T1000_E) && defined(PIN_USER_BTN)
+  #include <helpers/ui/MomentaryButton.h>
+  #define TRACKER_POWER_BUTTON 1
+  #ifndef TRACKER_POWER_OFF_HOLD_MS
+    #define TRACKER_POWER_OFF_HOLD_MS  1500
+  #endif
+  static MomentaryButton power_btn(PIN_USER_BTN, TRACKER_POWER_OFF_HOLD_MS, false, true, false);   // active high, pulled down
+#endif
+
 /* ---------------------------------- CONFIGURATION ------------------------------------- */
 // Everything below is only the *default*; the values are stored in flash and changed over the
 // serial CLI (see tools/provision_tracker.py).
@@ -529,6 +543,22 @@ void halt() {
   while (1) ;
 }
 
+#ifdef TRACKER_POWER_BUTTON
+// Long press: play the shutdown tune (if any) and power the board off.
+// powerOff() waits for the button to be released, then sleeps until the button is pressed again.
+static void shutdown_tracker() {
+  Serial.println("power off");
+#ifdef PIN_BUZZER
+  buzzer.shutdown();
+  uint32_t started = millis();
+  while (buzzer.isPlaying() && (uint32_t)(millis() - started) < 2500) {   // fail-safe cap
+    buzzer.loop();
+  }
+#endif
+  board.powerOff();
+}
+#endif
+
 void setup() {
   Serial.begin(115200);
 
@@ -548,9 +578,24 @@ void setup() {
 
   the_mesh.showWelcome();
   // NOTE: deliberately no initial advert - trackers never advertise.
+
+#ifdef TRACKER_POWER_BUTTON
+  power_btn.begin();
+#endif
+#ifdef PIN_BUZZER
+  buzzer.begin();
+  buzzer.startup();   // plays out from loop(); we're up and running at this point
+#endif
 }
 
 void loop() {
   the_mesh.loop();
   rtc_clock.tick();
+
+#ifdef PIN_BUZZER
+  if (buzzer.isPlaying()) buzzer.loop();
+#endif
+#ifdef TRACKER_POWER_BUTTON
+  if (power_btn.check() == BUTTON_EVENT_LONG_PRESS) shutdown_tracker();
+#endif
 }
