@@ -28,6 +28,11 @@ SIMPLE_KEYS = {
     "sf": ("sf", "sf"),
     "cr": ("cr", "cr"),
     "tx_power": ("tx", "tx"),
+    "idle_interval_sec": ("idle_interval", "idle_interval"),
+    "idle_holdoff_sec": ("idle_holdoff", "idle_holdoff"),
+    "fix_timeout_sec": ("fix_timeout", "fix_timeout"),
+    "move_distance_m": ("move_dist", "move_dist"),
+    "motion_threshold": ("motion", "motion"),
 }
 ALLOWED_KEYS = set(SIMPLE_KEYS) | {"channel_name", "channel_psk"}
 
@@ -72,6 +77,11 @@ def validate_config(cfg, min_interval):
 
     num("interval_sec", min_interval, 86400)
     num("nofix_notify_interval_sec", min_interval, 604800)
+    num("idle_interval_sec", min_interval, 86400)
+    num("idle_holdoff_sec", 60, 3600)
+    num("fix_timeout_sec", 10, 300)
+    num("move_distance_m", 5, 500)
+    num("motion_threshold", 1, 255)
     num("freq", 150, 960, integer=False)
     num("sf", 5, 12)
     num("cr", 5, 8)

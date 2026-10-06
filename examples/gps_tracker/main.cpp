@@ -102,6 +102,28 @@ unsigned int decode_base64(const unsigned char input[], unsigned int input_lengt
   #define TRACKER_NOFIX_NOTIFY_INTERVAL_SEC   1800
 #endif
 
+// Motion-driven reporting (state machine arrives in a later commit; settings are stored already).
+// interval_sec is the report interval while moving; idle_interval_sec is the heartbeat while idle.
+#ifndef TRACKER_IDLE_INTERVAL_SEC
+  #define TRACKER_IDLE_INTERVAL_SEC   1800
+#endif
+// Stillness required before the tracker declares itself idle (keeps a walk around a tent from flipping state)
+#ifndef TRACKER_IDLE_HOLDOFF_SEC
+  #define TRACKER_IDLE_HOLDOFF_SEC    300
+#endif
+// How long to wait for a GPS fix when a report is due
+#ifndef TRACKER_FIX_TIMEOUT_SEC
+  #define TRACKER_FIX_TIMEOUT_SEC     90
+#endif
+// GPS displacement (metres, across fixes) that confirms movement
+#ifndef TRACKER_MOVE_DIST_M
+  #define TRACKER_MOVE_DIST_M         25
+#endif
+// Accelerometer motion sensitivity (units defined by the driver)
+#ifndef TRACKER_MOTION_THRESHOLD
+  #define TRACKER_MOTION_THRESHOLD    32
+#endif
+
 /* -------------------------------------------------------------------------------------- */
 
 #define PREFS_FILE    "/tracker_prefs"
@@ -119,7 +141,14 @@ struct TrackerPrefs {  // persisted to file
   uint8_t sf, cr;
   int8_t tx_power_dbm;
   float freq, bw;
+  // appended in v2; a v1 file is padded with defaults when loaded
+  uint32_t idle_interval_sec;
+  uint32_t idle_holdoff_sec;
+  uint32_t fix_timeout_sec;
+  uint16_t move_dist_m;
+  uint16_t motion_threshold;
 };
+#define PREFS_V1_SIZE  offsetof(TrackerPrefs, idle_interval_sec)
 
 // metres -> whole feet, rounded to nearest
 static long meters_to_feet(int32_t m) {
@@ -169,6 +198,9 @@ class TrackerMesh : public BaseChatMesh {
   unsigned long _last_nofix_ms;
   unsigned long _last_sent_ms;
   bool _have_sent;
+  bool _moving;                 // reported as "mv" (true) or "idle" (false) at the end of every message
+
+  const char* stateMarker() const { return _moving ? "mv" : "idle"; }
 
   // CLI
   char _cmd[160];
@@ -195,6 +227,11 @@ class TrackerMesh : public BaseChatMesh {
     _prefs.tx_power_dbm = LORA_TX_POWER;
     _prefs.freq = LORA_FREQ;
     _prefs.bw = LORA_BW;
+    _prefs.idle_interval_sec = TRACKER_IDLE_INTERVAL_SEC;
+    _prefs.idle_holdoff_sec = TRACKER_IDLE_HOLDOFF_SEC;
+    _prefs.fix_timeout_sec = TRACKER_FIX_TIMEOUT_SEC;
+    _prefs.move_dist_m = TRACKER_MOVE_DIST_M;
+    _prefs.motion_threshold = TRACKER_MOTION_THRESHOLD;
   }
 
   void loadPrefs() {
@@ -202,14 +239,15 @@ class TrackerMesh : public BaseChatMesh {
     if (_fs->exists(PREFS_FILE)) {
       File file = _fs->open(PREFS_FILE);
       if (file) {
-        TrackerPrefs tmp;
-        bool ok = file.read((uint8_t *) &tmp, sizeof(tmp)) == sizeof(tmp) && tmp.magic == PREFS_MAGIC;
+        TrackerPrefs tmp = _prefs;   // defaults first: fields missing from an older file keep them
+        int got = file.read((uint8_t *) &tmp, sizeof(tmp));
         file.close();
-        if (ok) {
+        if (got >= (int)PREFS_V1_SIZE && tmp.magic == PREFS_MAGIC) {
           tmp.node_name[sizeof(tmp.node_name) - 1] = 0;
           tmp.channel_name[sizeof(tmp.channel_name) - 1] = 0;
           tmp.channel_psk[sizeof(tmp.channel_psk) - 1] = 0;
           if (tmp.interval_sec < TRACKER_MIN_INTERVAL_SEC) tmp.interval_sec = TRACKER_MIN_INTERVAL_SEC;
+          if (tmp.idle_interval_sec < TRACKER_MIN_INTERVAL_SEC) tmp.idle_interval_sec = TRACKER_MIN_INTERVAL_SEC;
           _prefs = tmp;
         }
       }
@@ -242,8 +280,9 @@ class TrackerMesh : public BaseChatMesh {
 
     uint16_t mv = board.getBattMilliVolts();
     char text[96];
-    int len = snprintf(text, sizeof(text), "%s,%s alt=%ldft sats=%u bat=%u.%02uV", lat, lon,
-                       meters_to_feet(fix.alt_m), (unsigned)fix.sats, (unsigned)(mv / 1000), (unsigned)((mv % 1000) / 10));
+    int len = snprintf(text, sizeof(text), "%s,%s alt=%ldft sats=%u bat=%u.%02uV %s", lat, lon,
+                       meters_to_feet(fix.alt_m), (unsigned)fix.sats, (unsigned)(mv / 1000), (unsigned)((mv % 1000) / 10),
+                       stateMarker());
     sendText(text, len);
 
     _reported = true;
@@ -269,12 +308,12 @@ class TrackerMesh : public BaseChatMesh {
       fmt_degrees(lon, sizeof(lon), _last_lon_e6);
       uint32_t mins = (now - _last_fix_ms) / 60000UL;
       if (mins < 120) {
-        len = snprintf(text, sizeof(text), "no fix (last %s,%s %lum ago)", lat, lon, (unsigned long)mins);
+        len = snprintf(text, sizeof(text), "no fix (last %s,%s %lum ago) %s", lat, lon, (unsigned long)mins, stateMarker());
       } else {
-        len = snprintf(text, sizeof(text), "no fix (last %s,%s %luh ago)", lat, lon, (unsigned long)(mins / 60));
+        len = snprintf(text, sizeof(text), "no fix (last %s,%s %luh ago) %s", lat, lon, (unsigned long)(mins / 60), stateMarker());
       }
     } else {
-      len = snprintf(text, sizeof(text), "no fix (no position yet)");
+      len = snprintf(text, sizeof(text), "no fix (no position yet) %s", stateMarker());
     }
     sendText(text, len);
 
@@ -304,10 +343,16 @@ class TrackerMesh : public BaseChatMesh {
     Serial.printf("sf=%u\n", (unsigned)_prefs.sf);
     Serial.printf("cr=%u\n", (unsigned)_prefs.cr);
     Serial.printf("tx=%d\n", (int)_prefs.tx_power_dbm);
+    Serial.printf("idle_interval=%lu\n", (unsigned long)_prefs.idle_interval_sec);
+    Serial.printf("idle_holdoff=%lu\n", (unsigned long)_prefs.idle_holdoff_sec);
+    Serial.printf("fix_timeout=%lu\n", (unsigned long)_prefs.fix_timeout_sec);
+    Serial.printf("move_dist=%u\n", (unsigned)_prefs.move_dist_m);
+    Serial.printf("motion=%u\n", (unsigned)_prefs.motion_threshold);
   }
 
   void printStatus() {
     printConfig();
+    Serial.printf("state=%s\n", stateMarker());
     TrackerFix fix;
     if (tracker_gps_get_fix(fix) && fix.valid) {
       char lat[16], lon[16];
@@ -356,6 +401,22 @@ class TrackerMesh : public BaseChatMesh {
       if (!parse_uint(val, n) || n > 604800) return "nofix_interval must be whole seconds";
       if (n < TRACKER_MIN_INTERVAL_SEC) return "nofix_interval below minimum";
       _prefs.nofix_notify_sec = n;
+    } else if (strcmp(args, "idle_interval") == 0) {
+      if (!parse_uint(val, n) || n > 86400) return "idle_interval must be whole seconds";
+      if (n < TRACKER_MIN_INTERVAL_SEC) return "idle_interval below minimum";
+      _prefs.idle_interval_sec = n;
+    } else if (strcmp(args, "idle_holdoff") == 0) {
+      if (!parse_uint(val, n) || n < 60 || n > 3600) return "idle_holdoff must be 60-3600 seconds";
+      _prefs.idle_holdoff_sec = n;
+    } else if (strcmp(args, "fix_timeout") == 0) {
+      if (!parse_uint(val, n) || n < 10 || n > 300) return "fix_timeout must be 10-300 seconds";
+      _prefs.fix_timeout_sec = n;
+    } else if (strcmp(args, "move_dist") == 0) {
+      if (!parse_uint(val, n) || n < 5 || n > 500) return "move_dist must be 5-500 metres";
+      _prefs.move_dist_m = n;
+    } else if (strcmp(args, "motion") == 0) {
+      if (!parse_uint(val, n) || n < 1 || n > 255) return "motion must be 1-255";
+      _prefs.motion_threshold = n;
     } else if (strcmp(args, "freq") == 0) {
       float f = atof(val);
       if (f < 150.0f || f > 960.0f) return "freq must be 150-960 MHz";
@@ -408,6 +469,11 @@ class TrackerMesh : public BaseChatMesh {
       Serial.printf("   set interval <sec>          (min %d)\n", TRACKER_MIN_INTERVAL_SEC);
       Serial.println("   set nofix silent|notify");
       Serial.println("   set nofix_interval <sec>");
+      Serial.printf("   set idle_interval <sec>     (heartbeat while idle, min %d)\n", TRACKER_MIN_INTERVAL_SEC);
+      Serial.println("   set idle_holdoff <sec>      (stillness before going idle, 60-3600)");
+      Serial.println("   set fix_timeout <sec>       (10-300)");
+      Serial.println("   set move_dist <metres>      (GPS displacement that confirms movement)");
+      Serial.println("   set motion <1-255>          (accelerometer sensitivity)");
       Serial.println("   set freq|bw|sf|cr|tx <value>");
       Serial.println("   reboot");
       Serial.println("OK");
@@ -464,6 +530,7 @@ public:
     _channel = NULL;
     _next_send = 0;
     _reported = _have_last_fix = _nofix_notified = _have_sent = false;
+    _moving = true;   // until the motion state machine exists (and on boards with no accelerometer)
     _last_lat_e6 = _last_lon_e6 = 0;
     _last_fix_ms = _last_nofix_ms = _last_sent_ms = 0;
     _cmd_len = 0;
