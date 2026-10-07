@@ -354,6 +354,7 @@ class TrackerMesh : public BaseChatMesh {
   void printStatus() {
     printConfig();
     Serial.printf("state=%s\n", stateMarker());
+    Serial.printf("gps=%s\n", tracker_gps_powered() ? "on" : "off");
     Serial.printf("accel=%s irqs=%lu\n", tracker_motion_available() ? "yes" : "no", (unsigned long)tracker_motion_irq_count());
     TrackerFix fix;
     if (tracker_gps_get_fix(fix) && fix.valid) {
@@ -461,6 +462,12 @@ class TrackerMesh : public BaseChatMesh {
       Serial.flush();
       delay(100);
       board.reboot();
+    } else if (memcmp(command, "gps ", 4) == 0) {   // diagnostics: power the receiver on/off
+      if (strcmp(&command[4], "on") == 0) tracker_gps_power(true);
+      else if (strcmp(&command[4], "off") == 0) tracker_gps_power(false);
+      else { Serial.println("ERR: gps on|off"); return; }
+      Serial.printf("gps=%s\n", tracker_gps_powered() ? "on" : "off");
+      Serial.println("OK");
     } else if (strcmp(command, "accel") == 0) {   // diagnostics: raw accelerometer + interrupt counter
       tracker_motion_dump(Serial);
       Serial.println("OK");
@@ -482,6 +489,7 @@ class TrackerMesh : public BaseChatMesh {
       Serial.println("   set motion <1-255>          (accelerometer sensitivity)");
       Serial.println("   set freq|bw|sf|cr|tx <value>");
       Serial.println("   accel                       (accelerometer diagnostics)");
+      Serial.println("   gps on|off                  (power the GPS; the tracker will switch it back as it needs)");
       Serial.println("   reboot");
       Serial.println("OK");
     } else if (*command) {

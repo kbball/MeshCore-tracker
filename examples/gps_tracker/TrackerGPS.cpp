@@ -5,10 +5,26 @@
 
 #include <helpers/sensors/LocationProvider.h>
 
+static bool gps_powered = false;
+
 void tracker_gps_begin() {
   sensors.begin();                        // opens Serial1 to the GNSS chip
-  sensors.setSettingValue("gps", "1");    // power sequencing; stays on for the life of the tracker
+  tracker_gps_power(true);
 }
+
+void tracker_gps_power(bool on) {
+  if (on == gps_powered) return;
+  LocationProvider* gps = sensors.getLocationProvider();
+  if (on) {
+    sensors.setSettingValue("gps", "1");  // power sequencing (see T1000SensorManager::start_gps)
+    if (gps) gps->syncTime();             // forgets the previous fix, so only a new one counts; also re-syncs the clock
+  } else {
+    sensors.setSettingValue("gps", "0");  // sleep_gps(): rails off but the backup supply stays up for a fast hot start
+  }
+  gps_powered = on;
+}
+
+bool tracker_gps_powered() { return gps_powered; }
 
 void tracker_gps_loop() {
   sensors.loop();                         // pumps NMEA, syncs the RTC from GPS time
@@ -16,7 +32,7 @@ void tracker_gps_loop() {
 
 bool tracker_gps_get_fix(TrackerFix& fix) {
   LocationProvider* gps = sensors.getLocationProvider();
-  fix.valid = gps != NULL && gps->isValid();
+  fix.valid = gps_powered && gps != NULL && gps->isValid();
   if (!fix.valid) return false;
 
   fix.lat_e6 = gps->getLatitude();
@@ -43,6 +59,10 @@ void tracker_gps_begin() {
   Serial1.begin(TRACKER_GPS_BAUD);
   gps_nmea.begin();
 }
+
+// The L76K has no enable pin, so it can't be switched off: it simply stays on.
+void tracker_gps_power(bool on) { }
+bool tracker_gps_powered() { return true; }
 
 void tracker_gps_loop() {
   gps_nmea.loop();   // pumps NMEA, syncs the RTC from GPS time
