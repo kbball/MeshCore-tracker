@@ -24,7 +24,7 @@ struct Sim {
   std::vector<Event> events;
 
   void init() {
-    ReportScheduler::Config c = { MIN(5), MIN(30), MIN(5), SEC(90), SEC(3), 25 };
+    ReportScheduler::Config c = { MIN(5), MIN(30), MIN(5), SEC(90), SEC(3), 25, true };
     s.begin(c, 0);
   }
   void run(uint32_t until) {
@@ -149,10 +149,21 @@ static void test_motion_aborts_idle_check() {
   CHECK(sim.count(false, ReportScheduler::SEND_POSITION, 0, MIN(6)) == 0, "not idle after the bump");
 }
 
+static void test_no_accelerometer_never_idle() {
+  printf("no accelerometer: never idle, reports every interval\n");
+  Sim sim; sim.init();
+  ReportScheduler::Config c = { MIN(5), MIN(30), MIN(5), SEC(90), SEC(3), 25, false };
+  sim.s.begin(c, 0); sim.motion = never; sim.fix = always_fix; sim.run(MIN(60));
+  CHECK(sim.count(false, ReportScheduler::SEND_POSITION, 0, MIN(60)) == 0, "never idle");
+  int n = sim.count(true, ReportScheduler::SEND_POSITION, 0, MIN(60));
+  CHECK(n >= 11 && n <= 13, "%d reports in an hour", n);
+}
+
 int main() {
   test_boot_then_idle(); test_moving_cadence(); test_stop_then_idle(); test_pickup_immediate();
   test_brief_motion_holdoff(); test_no_fix_not_idle(); test_still_no_fix_goes_idle();
   test_gps_overrides_still_accel(); test_gps_off_between(); test_motion_aborts_idle_check();
+  test_no_accelerometer_never_idle();
   printf(failures ? "\n%d FAILURES\n" : "\nall passed\n", failures);
   return failures ? 1 : 0;
 }

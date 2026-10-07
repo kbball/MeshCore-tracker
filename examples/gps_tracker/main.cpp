@@ -14,6 +14,7 @@
 #include <target.h>
 #include "TrackerGPS.h"
 #include "TrackerMotion.h"
+#include "ReportScheduler.h"
 
 // From the base64 library. Not #included: it is a header-only implementation that BaseChatMesh.cpp already
 // compiles in, so including it here too would define every function twice.
@@ -88,9 +89,9 @@ unsigned int decode_base64(const unsigned char input[], unsigned int input_lengt
   #error "TRACKER_INTERVAL_SEC must be >= TRACKER_MIN_INTERVAL_SEC"
 #endif
 
-// delay before the first report after boot
-#ifndef TRACKER_FIRST_SEND_DELAY_SEC
-  #define TRACKER_FIRST_SEND_DELAY_SEC  10
+// a fix must hold this long before it is used (the first fix after wake-up is often rough)
+#ifndef TRACKER_FIX_SETTLE_SEC
+  #define TRACKER_FIX_SETTLE_SEC  3
 #endif
 
 // What to do at a reporting tick when there is no GPS fix:
@@ -188,10 +189,9 @@ class TrackerMesh : public BaseChatMesh {
   FILESYSTEM* _fs;
   TrackerPrefs _prefs;
   ChannelDetails* _channel;
-  unsigned long _next_send;
+  ReportScheduler _sched;
 
   // report state
-  bool _reported;               // a position report has gone out since boot
   bool _have_last_fix;          // we have seen a fix at some point since boot
   int32_t _last_lat_e6, _last_lon_e6;
   unsigned long _last_fix_ms;
@@ -207,11 +207,22 @@ class TrackerMesh : public BaseChatMesh {
   char _cmd[160];
   int _cmd_len;
 
-  uint32_t intervalMillis() const { return _prefs.interval_sec * 1000UL; }
   uint32_t nofixNoticeMillis() const {
     uint32_t sec = _prefs.nofix_notify_sec;
     if (sec < _prefs.interval_sec) sec = _prefs.interval_sec;   // never faster than a normal report
     return sec * 1000UL;
+  }
+
+  ReportScheduler::Config schedConfig() const {
+    ReportScheduler::Config c;
+    c.interval_ms = _prefs.interval_sec * 1000UL;
+    c.idle_interval_ms = _prefs.idle_interval_sec * 1000UL;
+    c.holdoff_ms = _prefs.idle_holdoff_sec * 1000UL;
+    c.fix_timeout_ms = _prefs.fix_timeout_sec * 1000UL;
+    c.settle_ms = TRACKER_FIX_SETTLE_SEC * 1000UL;
+    c.move_dist_m = _prefs.move_dist_m;
+    c.motion_sensing = tracker_motion_available();   // without an accelerometer the unit always reports as moving
+    return c;
   }
 
   void setDefaults() {
@@ -286,17 +297,17 @@ class TrackerMesh : public BaseChatMesh {
                        stateMarker());
     sendText(text, len);
 
-    _reported = true;
     _nofix_notified = false;
   }
 
-  void handleNoFix() {
-    if (_prefs.nofix_mode == 0) {
+  // forced: a state change (motion started / went idle) is always announced, even if no-fix notices are rate limited
+  void handleNoFix(bool forced) {
+    if (_prefs.nofix_mode == 0 && !forced) {
       Serial.println("no fix (silent)");
       return;
     }
     unsigned long now = millis();
-    if (_nofix_notified && (now - _last_nofix_ms) < nofixNoticeMillis()) {
+    if (!forced && _nofix_notified && (now - _last_nofix_ms) < nofixNoticeMillis()) {
       Serial.println("no fix (notice rate-limited)");
       return;
     }
@@ -370,7 +381,7 @@ class TrackerMesh : public BaseChatMesh {
     } else {
       Serial.println("last_sent=never");
     }
-    Serial.printf("next_report=%lds\n", (long)(_next_send - millis()) / 1000);
+    Serial.printf("next_report=%lds\n", (long)(_sched.nextDue() - millis()) / 1000);
     Serial.printf("battery_mv=%u\n", (unsigned)board.getBattMilliVolts());
   }
 
@@ -442,6 +453,7 @@ class TrackerMesh : public BaseChatMesh {
     } else {
       return "unknown setting";
     }
+    _sched.setConfig(schedConfig());
     return savePrefs() ? NULL : "unable to save";
   }
 
@@ -543,8 +555,7 @@ public:
      : BaseChatMesh(radio, *new ArduinoMillis(), rng, rtc, *new StaticPoolPacketManager(16), tables)
   {
     _channel = NULL;
-    _next_send = 0;
-    _reported = _have_last_fix = _nofix_notified = _have_sent = false;
+    _have_last_fix = _nofix_notified = _have_sent = false;
     _moving = true;   // until the motion state machine exists (and on boards with no accelerometer)
     _last_lat_e6 = _last_lon_e6 = 0;
     _last_fix_ms = _last_nofix_ms = _last_sent_ms = 0;
@@ -558,6 +569,7 @@ public:
   uint8_t getCrPref() const { return _prefs.cr; }
   int8_t getTxPowerPref() const { return _prefs.tx_power_dbm; }
   uint8_t getMotionPref() const { return _prefs.motion_threshold; }
+  void refreshSchedule() { _sched.setConfig(schedConfig()); }   // call once the accelerometer is up (or known to be absent)
 
   void begin(FILESYSTEM& fs) {
     _fs = &fs;
@@ -578,7 +590,7 @@ public:
       _channel = addChannel(TRACKER_CHANNEL_NAME, TRACKER_CHANNEL_PSK);
     }
     if (!_channel) Serial.println("ERROR: unable to set up the report channel; nothing will be sent");
-    _next_send = millis() + (uint32_t)TRACKER_FIRST_SEND_DELAY_SEC * 1000UL;
+    _sched.begin(schedConfig(), millis());   // reports promptly after boot (as "mv"), then settles into idle if nothing moves
   }
 
   void showWelcome() {
@@ -604,16 +616,21 @@ public:
       _last_fix_ms = millis();
     }
 
-    // Report on the interval; and after boot, report as soon as the first fix arrives
-    // rather than waiting out the rest of the interval.
-    bool due = (long)(millis() - _next_send) >= 0;
-    if (due || (have_fix && !_reported)) {
-      _next_send = millis() + intervalMillis();
-      if (have_fix) {
-        sendPosition(fix);
-      } else {
-        handleNoFix();
-      }
+    ReportScheduler::Input in;
+    in.now = millis();
+    in.motion = tracker_motion_poll();
+    in.fix_valid = have_fix;
+    in.lat_e6 = fix.lat_e6;
+    in.lon_e6 = fix.lon_e6;
+
+    ReportScheduler::Output out = _sched.step(in);
+    tracker_gps_power(out.gps_on);   // the fix above was read before any power-down
+    _moving = out.moving;
+
+    if (out.send == ReportScheduler::SEND_POSITION) {
+      sendPosition(fix);
+    } else if (out.send == ReportScheduler::SEND_NOFIX) {
+      handleNoFix(out.forced);
     }
   }
 };
@@ -657,8 +674,9 @@ void setup() {
   the_mesh.begin(InternalFS);
 
   if (!tracker_motion_begin(the_mesh.getMotionPref())) {
-    Serial.println("accelerometer: not available (no motion detection)");
+    Serial.println("accelerometer: not available (no motion detection; unit will always report as moving)");
   }
+  the_mesh.refreshSchedule();
 
   radio_driver.setParams(the_mesh.getFreqPref(), the_mesh.getBwPref(), the_mesh.getSfPref(), the_mesh.getCrPref());
   radio_driver.setTxPower(the_mesh.getTxPowerPref());

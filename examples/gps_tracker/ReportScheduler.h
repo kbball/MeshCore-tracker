@@ -22,6 +22,7 @@ public:
     uint32_t fix_timeout_ms;     // give up on a fix after this long
     uint32_t settle_ms;          // a fix must hold this long before it is used
     uint32_t move_dist_m;        // GPS displacement that overrides a still accelerometer
+    bool motion_sensing;         // false: no accelerometer, so the unit can never be judged idle (always "moving")
   };
 
   enum SendKind { SEND_NONE, SEND_POSITION, SEND_NOFIX };
@@ -68,7 +69,7 @@ public:
     }
 
     if (!acquiring_) {
-      bool still_long = moving_ && reached(in.now, last_motion_ + c.holdoff_ms);
+      bool still_long = c.motion_sensing && moving_ && reached(in.now, last_motion_ + c.holdoff_ms);
       if (still_long || reached(in.now, next_due_)) startCycle(in.now);
     }
 
@@ -111,7 +112,7 @@ private:
   Output finish(const Input& in, bool have_fix) {
     bool forced = transition_;
     // moving -> idle is decided when a cycle finishes: has the unit been still for the whole hold-off?
-    if (moving_ && reached(in.now, last_motion_ + c.holdoff_ms)) {
+    if (c.motion_sensing && moving_ && reached(in.now, last_motion_ + c.holdoff_ms)) {
       bool moved = have_fix && have_last_ && distanceM(last_lat_, last_lon_, in.lat_e6, in.lon_e6) > c.move_dist_m;
       if (moved) {
         last_motion_ = in.now;     // GPS says we are still travelling: stay moving, look again after another holdoff
