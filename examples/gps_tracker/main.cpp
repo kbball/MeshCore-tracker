@@ -185,6 +185,8 @@ static bool parse_uint(const char* s, uint32_t& out) {
   return true;
 }
 
+extern RADIO_CLASS radio;   // the RadioLib object behind radio_driver (defined in target.cpp)
+
 class TrackerMesh : public BaseChatMesh {
   FILESYSTEM* _fs;
   TrackerPrefs _prefs;
@@ -199,6 +201,9 @@ class TrackerMesh : public BaseChatMesh {
   unsigned long _last_nofix_ms;
   unsigned long _last_sent_ms;
   bool _have_sent;
+  bool _radio_awake;            // false while the radio is in sleep mode between sends
+  int _tx_outstanding;          // packets queued whose transmission has not finished
+  unsigned long _tx_deadline;
   bool _moving;                 // reported as "mv" (true) or "idle" (false) at the end of every message
 
   const char* stateMarker() const { return _moving ? "mv" : "idle"; }
@@ -275,8 +280,32 @@ class TrackerMesh : public BaseChatMesh {
     return ok;
   }
 
+  // The tracker only transmits, so between sends the radio sleeps instead of listening.
+  // A send is outstanding from queueing until the dispatcher reports it done (logTx / logTxFail);
+  // the deadline stops a lost packet from keeping the radio awake forever.
+  bool txPending() const {
+    return _tx_outstanding > 0 && (long)(millis() - _tx_deadline) < 0;
+  }
+
+  void wakeRadio() {
+    if (_radio_awake) return;
+    radio.standby();            // also wakes the chip (configuration is retained across sleep)
+    _radio_awake = true;
+  }
+
+  void sleepRadioIfIdle() {
+    if (_radio_awake && !txPending()) {
+      radio.standby();
+      radio.sleep();            // warm sleep: lowest power, configuration retained
+      _radio_awake = false;
+    }
+  }
+
   void sendText(const char* text, int len) {
+    wakeRadio();
     if (sendGroupMessage(getRTCClock()->getCurrentTime(), _channel->channel, _prefs.node_name, text, len)) {
+      _tx_outstanding++;
+      _tx_deadline = millis() + 30000;   // generous: includes any airtime-budget delay
       _last_sent_ms = millis();
       _have_sent = true;
       Serial.printf("sent: %s: %s\n", _prefs.node_name, text);
@@ -528,6 +557,15 @@ class TrackerMesh : public BaseChatMesh {
   }
 
 protected:
+  void logTx(mesh::Packet* packet, int len) override {
+    if (_tx_outstanding > 0) _tx_outstanding--;
+    Serial.printf("tx done (%d bytes)\n", len);
+  }
+  void logTxFail(mesh::Packet* packet, int len) override {
+    if (_tx_outstanding > 0) _tx_outstanding--;
+    Serial.printf("tx FAILED (%d bytes)\n", len);
+  }
+
   float getAirtimeBudgetFactor() const override { return 1.0f; }
   int calcRxDelay(float score, uint32_t air_time) const override { return 0; }
 
@@ -555,6 +593,10 @@ public:
      : BaseChatMesh(radio, *new ArduinoMillis(), rng, rtc, *new StaticPoolPacketManager(16), tables)
   {
     _channel = NULL;
+    _radio_awake = true;
+    _radio_awake = true;   // radio_init() leaves it in standby
+    _tx_outstanding = 0;
+    _tx_deadline = 0;
     _have_last_fix = _nofix_notified = _have_sent = false;
     _moving = true;   // until the motion state machine exists (and on boards with no accelerometer)
     _last_lat_e6 = _last_lon_e6 = 0;
@@ -601,7 +643,7 @@ public:
   }
 
   void loop() {
-    BaseChatMesh::loop();
+    if (_radio_awake) BaseChatMesh::loop();   // moves queued packets out and completes transmissions
     pollSerial();
 
     tracker_gps_loop();
@@ -632,6 +674,8 @@ public:
     } else if (out.send == ReportScheduler::SEND_NOFIX) {
       handleNoFix(out.forced);
     }
+
+    sleepRadioIfIdle();
   }
 };
 
@@ -703,4 +747,8 @@ void loop() {
 #ifdef TRACKER_POWER_BUTTON
   if (power_btn.check() == BUTTON_EVENT_LONG_PRESS) shutdown_tracker();
 #endif
+
+  // Let the CPU sleep between passes instead of spinning. While the GPS is on, its UART must be drained
+  // often (115200 baud NMEA bursts overflow the small RX buffer after a few ms); otherwise relax.
+  delay(tracker_gps_powered() ? 1 : 10);
 }
