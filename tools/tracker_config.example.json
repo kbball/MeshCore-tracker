@@ -8,5 +8,10 @@
   "bw": 62.5,
   "sf": 7,
   "cr": 5,
-  "tx_power": 22
+  "tx_power": 22,
+  "idle_interval_sec": 1800,
+  "idle_holdoff_sec": 300,
+  "fix_timeout_sec": 90,
+  "move_distance_m": 25,
+  "motion_threshold": 32
 }

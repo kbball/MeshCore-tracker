@@ -29,14 +29,22 @@ pio run -e Xiao_nrf52_gps_tracker
 Design decisions (keep these unless the user changes them):
 
 - Send-only: never advertise, never forward (`allowPacketForward` is false), ignore received adverts.
-- Position goes out as plain text on one channel: `<name>: lat,lon alt=..ft sats=.. bat=..V`.
+- Position goes out as plain text on one channel: `<name>: lat,lon alt=..ft sats=.. bat=..V mv|idle`.
+  The last field is always the state marker (`mv` = moving, `idle`); no-fix messages carry it too.
+  Parsed by `tools/parse_tracker_message.py` - keep the format stable and in sync with the firmware.
+- T-1000-E is motion aware (`ReportScheduler.h`, pure logic with host tests): the accelerometer alone
+  decides moving vs idle; a missing fix is never evidence of idle. Moving reports every 300 s; idle sends
+  a 30 min heartbeat; motion start reports once a fix is obtained; after a hold-off of stillness one last
+  fix is sent marked `idle`. GPS displacement over `move_dist` overrides a still accelerometer.
+- GPS is powered only while acquiring a fix (T-1000-E); the radio sleeps between sends; the CPU idles.
+  XIAO + L76K can't power-gate the GPS and has no accelerometer: it stays on and always reports `mv`.
 - Interval floor is `TRACKER_MIN_INTERVAL_SEC` (default 300 s), enforced by the firmware CLI and the
   provisioning script. Reports are flooded, so don't lower it casually.
-- GPS stays powered continuously (no duty cycling).
-- No fix: runtime setting `nofix` = `notify` (default, rate-limited by `nofix_interval`) or `silent`.
+- No fix: runtime setting `nofix` = `notify` (default, rate-limited by `nofix_interval`) or `silent`;
+  state-change messages are always sent.
 - Node name is set per unit with `--name`; it is intentionally not part of the JSON config.
-- Board GPS glue is in `TrackerGPS.cpp`. XIAO + L76K uses `Serial1` (D6 TX / D7 RX, 9600 baud), has no
-  enable pin, and the build sets `XIAO_NO_I2C` because D6/D7 are shared with I2C.
+- Board GPS glue is in `TrackerGPS.cpp`, accelerometer in `TrackerMotion.cpp`. XIAO + L76K uses `Serial1`
+  (D6 TX / D7 RX, 9600 baud), has no enable pin, and the build sets `XIAO_NO_I2C` (D6/D7 shared with I2C).
 
 Gotchas:
 
@@ -45,7 +53,13 @@ Gotchas:
 - Don't `#include <base64.hpp>` in the example; it's header-only and already compiled into BaseChatMesh.cpp.
 - Provisioning configs (`tools/*.json`, e.g. `gdr-2027.json`) contain channel keys and are gitignored.
   Only `tools/tracker_config.example.json` is tracked.
+- The USB port disappears on `reboot`/reflash; scripts must reconnect.
+- Prefs are in `/tracker_prefs`; the struct is append-only so existing units keep their settings on upgrade.
 
-Status: T1000-E verified on hardware (flash, provisioning, no-fix notice, first-fix report received on the
-channel by a second node). Not yet run on hardware: XIAO + L76K, and the no-advert/no-forward behaviour on
-air. Power tuning was deliberately skipped (needs measurement).
+Tests: `examples/gps_tracker/tests/scheduler_test.cpp` (g++), `tools/test_provision_tracker.py`,
+`tools/test_parse_tracker_message.py`.
+
+Status: T-1000-E verified on hardware (flash, provisioning, reports received on the channel, accelerometer
+interrupt, boot -> idle -> motion -> mv -> idle cycle, radio sleep + later sends complete). Not yet done:
+XIAO + L76K on hardware; the no-advert/no-forward behaviour on air; tuning `motion`/`idle_holdoff` in a real
+vehicle; measuring current draw (the estimates in discussion were never measured).
