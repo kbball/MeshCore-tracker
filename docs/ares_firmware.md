@@ -13,7 +13,7 @@ The ARES team uses a fixed set of boards. One tag builds all of them and publish
 | `Xiao_nrf52_companion_radio_usb_ble` | Seeed XIAO nRF52840 | companion (people), USB + BLE |
 | `t1000e_companion_radio_usb_ble` | Seeed T-1000-E | companion, USB + BLE |
 | `RAK_4631_companion_radio_usb_ble` | RAK4631 | companion, USB + BLE |
-| `RAK_4631_companion_radio_ethernet` | RAK4631 + RAK13800 | gateway the meshcore-mqtt bridge reaches over TCP (port 5000, DHCP, PoE) |
+| `RAK_4631_companion_radio_usb_ethernet` | RAK4631 + RAK13800 | gateway the meshcore-mqtt bridge reaches over TCP (port 5000, DHCP, PoE); also has USB serial so the fleet tool can configure it (the plain `_ethernet` env has no USB or BLE) |
 | `t1000e_gps_tracker` | Seeed T-1000-E | sweep tracker |
 | `Xiao_nrf52_gps_tracker` | Seeed XIAO nRF52840 | sweep tracker |
 

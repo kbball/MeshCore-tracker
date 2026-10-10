@@ -2,7 +2,7 @@
   { "env": "Xiao_nrf52_companion_radio_usb_ble", "board": "Seeed XIAO nRF52840", "kind": "companion" },
   { "env": "t1000e_companion_radio_usb_ble", "board": "Seeed T-1000-E", "kind": "companion" },
   { "env": "RAK_4631_companion_radio_usb_ble", "board": "RAK4631", "kind": "companion" },
-  { "env": "RAK_4631_companion_radio_ethernet", "board": "RAK4631 + RAK13800 Ethernet (gateway)", "kind": "companion" },
+  { "env": "RAK_4631_companion_radio_usb_ethernet", "board": "RAK4631 + RAK13800 Ethernet (gateway)", "kind": "companion" },
   { "env": "t1000e_gps_tracker", "board": "Seeed T-1000-E", "kind": "tracker" },
   { "env": "Xiao_nrf52_gps_tracker", "board": "Seeed XIAO nRF52840", "kind": "tracker" }
 ]
