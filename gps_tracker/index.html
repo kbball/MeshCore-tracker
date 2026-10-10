@@ -1,0 +1,1280 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the open source MeshCore firmware">
+      
+      
+      
+        <link rel="canonical" href="https://meshcore-dev.github.io/meshcore/gps_tracker/">
+      
+      
+        <link rel="prev" href="../faq/">
+      
+      
+        <link rel="next" href="../kiss_modem_protocol/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>GPS Tracker Firmware - MeshCore Docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../_stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#gps-tracker-firmware" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MeshCore Docs" class="md-header__button md-logo" aria-label="MeshCore Docs" data-md-component="logo">
+      
+  <img src="../_assets/meshcore.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MeshCore Docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              GPS Tracker Firmware
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/meshcore-dev/meshcore/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    meshcore-dev/meshcore
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MeshCore Docs" class="md-nav__button md-logo" aria-label="MeshCore Docs" data-md-component="logo">
+      
+  <img src="../_assets/meshcore.svg" alt="logo">
+
+    </a>
+    MeshCore Docs
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/meshcore-dev/meshcore/" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    meshcore-dev/meshcore
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ares_firmware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ARES firmware releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../companion_protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Companion Protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frequently Asked Questions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPS Tracker Firmware
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPS Tracker Firmware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#supported-boards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported boards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported boards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#t-1000-e-buttons-and-sounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T-1000-E buttons and sounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xiao-l76k-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XIAO + L76K wiring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-reporting-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How reporting works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#message-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#airtime-the-minimum-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Airtime: the minimum interval
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provisioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provisioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serial-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serial CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuning-the-motion-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning the motion threshold
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-time-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile-time defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kiss_modem_protocol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MeshCore KISS Modem Protocol
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nrf52_power_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nRF52 Power Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../number_allocations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Number Allocations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../packet_format/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Packet Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payloads/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Payload Format
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../qr_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QR Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../radio_presets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Radio Presets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../stats_binary_frames/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stats Binary Frame Structures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../terminal_chat_cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terminal Chat CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#supported-boards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported boards
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Supported boards">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#t-1000-e-buttons-and-sounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        T-1000-E buttons and sounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xiao-l76k-wiring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XIAO + L76K wiring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-reporting-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How reporting works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#message-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message format
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#airtime-the-minimum-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Airtime: the minimum interval
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provisioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provisioning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#serial-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serial CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuning-the-motion-threshold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning the motion threshold
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-time-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile-time defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/meshcore-dev/meshcore/edit/main/docs/gps_tracker.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="gps-tracker-firmware">GPS Tracker Firmware</h1>
+<p>A send-only tracker: it <strong>never sends adverts</strong>, <strong>never repeats</strong> other nodes' packets, and
+broadcasts its GPS position as a plain-text message to one channel. Any normal MeshCore client on
+that channel sees the reports as ordinary channel messages.</p>
+<p>On the T-1000-E it is motion aware: it reports frequently while moving, sends a slow heartbeat
+while idle, and powers the GPS and radio down in between.</p>
+<p>Source: <code>examples/gps_tracker/</code>.</p>
+<h2 id="supported-boards">Supported boards</h2>
+<table>
+<thead>
+<tr>
+<th>Board</th>
+<th>Build env</th>
+<th>GPS</th>
+<th>Motion / power-down</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Seeed T-1000-E</td>
+<td><code>t1000e_gps_tracker</code></td>
+<td>built in (<code>Serial1</code>, 115200 baud)</td>
+<td>accelerometer (QMA6100P), GPS and radio power-cycled</td>
+</tr>
+<tr>
+<td>Seeed XIAO nRF52840 + Wio-SX1262</td>
+<td><code>Xiao_nrf52_gps_tracker</code></td>
+<td>external L76K module (<code>Serial1</code>, 9600 baud)</td>
+<td>none: always reports as moving, GPS stays on</td>
+</tr>
+</tbody>
+</table>
+<pre><code>pio run -e t1000e_gps_tracker
+pio run -e Xiao_nrf52_gps_tracker
+./build.sh build-gps-tracker-firmwares
+</code></pre>
+<p>The XIAO build is <strong>not yet tested on hardware</strong>.</p>
+<h3 id="t-1000-e-buttons-and-sounds">T-1000-E buttons and sounds</h3>
+<p>A startup tune plays once the tracker is running. <strong>Hold the button for 1.5 s</strong> to power off (shutdown
+tune, then off); press it again to start. The hold time is <code>TRACKER_POWER_OFF_HOLD_MS</code>.</p>
+<h3 id="xiao-l76k-wiring">XIAO + L76K wiring</h3>
+<p>The L76K module talks NMEA over the XIAO hardware UART (D6 = TX, D7 = RX, 9600 baud). It has no
+enable pin, so the GPS runs continuously. D6/D7 are normally also the I2C pins on this variant, so the
+tracker build sets <code>XIAO_NO_I2C</code> and does not start I2C. The clock is set from GPS time.</p>
+<h2 id="how-reporting-works">How reporting works</h2>
+<p>The <strong>accelerometer alone decides</strong> whether the unit is moving or idle. A missing GPS fix is never
+treated as being idle, because a moving vehicle loses its fix under tree cover.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>moving</strong></td>
+<td>one report every <code>interval_sec</code> (default 300)</td>
+</tr>
+<tr>
+<td>motion starts while idle</td>
+<td>the GPS powers up and a report is sent as soon as a fix is obtained (typically 30-60 s)</td>
+</tr>
+<tr>
+<td>motion stops</td>
+<td>after <code>idle_holdoff_sec</code> (default 300) of stillness, one last fix is sent, marked <code>idle</code></td>
+</tr>
+<tr>
+<td><strong>idle</strong></td>
+<td>one heartbeat every <code>idle_interval_sec</code> (default 1800); GPS and radio asleep in between</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>GPS confirmation:</strong> if the accelerometer has been still but the final fix is more than
+  <code>move_distance_m</code> (default 25 m) from the previous report, the unit stays <code>mv</code> (e.g. a smooth ride).</li>
+<li><strong>No fix:</strong> the state is unchanged. A no-fix message is sent as set by <code>nofix</code>: <code>silent</code> sends nothing,
+  <code>notify</code> sends a short notice, rate limited to one per <code>nofix_interval</code> (default 30 min). A state
+  change (motion started / went idle) is always announced, even if it has to be a no-fix message.</li>
+<li><strong>Power:</strong> the GPS is on only while acquiring a fix (the first fix takes roughly 30-60 s); the radio
+  sleeps between sends (the tracker never listens); the CPU idles between loop passes.</li>
+<li><strong>Boot:</strong> it reports as soon as it has a fix, as <code>mv</code>, and then goes idle after the hold-off if nothing moves.</li>
+<li>A unit with no working accelerometer (XIAO) never goes idle and reports every <code>interval_sec</code>.</li>
+</ul>
+<h2 id="message-format">Message format</h2>
+<p>The sender name is the node name (not part of the payload). The last field is always the state marker,
+<code>mv</code> (moving) or <code>idle</code>.</p>
+<pre><code>Sweep1: 33.89057,-84.16948 alt=955ft sats=10 bat=3.77V mv
+Sweep1: no fix (no position yet) mv
+Sweep1: no fix (last 33.89057,-84.16948 25m ago) idle        (&quot;3h ago&quot; after two hours)
+</code></pre>
+<p><code>tools/parse_tracker_message.py</code> parses all three (and <code>tools/test_parse_tracker_message.py</code> pins the
+format). Altitude is in feet. Coordinates have 5 decimals.</p>
+<h2 id="airtime-the-minimum-interval">Airtime: the minimum interval</h2>
+<p>Every report is flooded to the whole channel and re-transmitted by repeaters, so channel load grows with
+(number of trackers / interval). The firmware refuses <code>interval_sec</code>, <code>idle_interval_sec</code> or
+<code>nofix_interval</code> below <code>TRACKER_MIN_INTERVAL_SEC</code> (default <strong>300 s</strong>). A dedicated build can lower the
+floor with <code>-D TRACKER_MIN_INTERVAL_SEC=...</code>; do that only knowing how many trackers share the channel.
+Use a dedicated channel for trackers.</p>
+<h2 id="provisioning">Provisioning</h2>
+<p>Settings are stored in flash. Set them over the USB serial CLI (115200 baud) or, for several units, with
+the provisioning script and a JSON file:</p>
+<pre><code>python3 tools/provision_tracker.py tools/tracker_config.example.json --name &quot;Sweep1&quot;
+</code></pre>
+<p>The script needs <code>pyserial</code> (<code>pip install pyserial</code>, or use the PlatformIO python:
+<code>~/.platformio/penv/bin/python tools/provision_tracker.py ...</code>). It validates the config (including the
+unit's own interval floor), applies each setting, reads everything back to verify, then reboots the unit.
+The node name is <strong>not</strong> in the JSON, so one config can be applied to many units; give each its own
+<code>--name</code>. Without <code>--name</code> the unit keeps its name. <code>--dry-run</code> validates and prints the commands without a
+device; <code>--port</code> selects the serial port; <code>--no-reboot</code> skips the reboot.</p>
+<p><strong>Config files contain the channel key, so only <code>tools/tracker_config.example.json</code> is tracked by git;
+every other <code>tools/*.json</code> is ignored.</strong> Keep your real config out of any public repository.</p>
+<pre><code class="language-json">{
+  &quot;channel_name&quot;: &quot;GDR Sweeps&quot;,
+  &quot;channel_psk&quot;: &quot;&lt;hex (32/64 chars) or base64, 16 or 32 bytes&gt;&quot;,
+  &quot;interval_sec&quot;: 300,
+  &quot;idle_interval_sec&quot;: 1800,
+  &quot;idle_holdoff_sec&quot;: 300,
+  &quot;fix_timeout_sec&quot;: 90,
+  &quot;move_distance_m&quot;: 25,
+  &quot;motion_threshold&quot;: 32,
+  &quot;nofix_mode&quot;: &quot;notify&quot;,
+  &quot;nofix_notify_interval_sec&quot;: 1800,
+  &quot;freq&quot;: 910.525, &quot;bw&quot;: 62.5, &quot;sf&quot;: 7, &quot;cr&quot;: 5, &quot;tx_power&quot;: 22
+}
+</code></pre>
+<p>All keys are optional, except <code>channel_name</code> and <code>channel_psk</code> go together. The channel name is only a
+label and may contain spaces; the PSK is the secret the companion apps use.</p>
+<h2 id="serial-cli">Serial CLI</h2>
+<p>Every command ends with a line starting <code>OK</code> or <code>ERR</code>. Log lines (<code>sent:</code>, <code>tx done</code>) may appear in between.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get</code> / <code>status</code></td>
+<td>settings as <code>key=value</code>, plus state, GPS power, fix, last send, battery</td>
+</tr>
+<tr>
+<td><code>set name &lt;name&gt;</code></td>
+<td>node name (1-31 chars)</td>
+</tr>
+<tr>
+<td><code>set channel &lt;psk_base64&gt; &lt;name&gt;</code></td>
+<td>channel to report to (the name may contain spaces)</td>
+</tr>
+<tr>
+<td><code>set interval &lt;sec&gt;</code></td>
+<td>report interval while moving (&gt;= minimum)</td>
+</tr>
+<tr>
+<td><code>set idle_interval &lt;sec&gt;</code></td>
+<td>heartbeat while idle (&gt;= minimum)</td>
+</tr>
+<tr>
+<td><code>set idle_holdoff &lt;sec&gt;</code></td>
+<td>stillness before going idle (60-3600)</td>
+</tr>
+<tr>
+<td><code>set fix_timeout &lt;sec&gt;</code></td>
+<td>give up waiting for a fix (10-300)</td>
+</tr>
+<tr>
+<td><code>set move_dist &lt;metres&gt;</code></td>
+<td>GPS displacement that confirms movement (5-500)</td>
+</tr>
+<tr>
+<td><code>set motion &lt;1-255&gt;</code></td>
+<td>accelerometer sensitivity; applies immediately (higher = less sensitive)</td>
+</tr>
+<tr>
+<td><code>set nofix silent\|notify</code>, <code>set nofix_interval &lt;sec&gt;</code></td>
+<td>no-fix policy</td>
+</tr>
+<tr>
+<td><code>set freq\|bw\|sf\|cr\|tx &lt;value&gt;</code></td>
+<td>radio parameters</td>
+</tr>
+<tr>
+<td><code>accel</code></td>
+<td>accelerometer diagnostics: raw x/y/z and the interrupt counter</td>
+</tr>
+<tr>
+<td><code>gps on\|off</code></td>
+<td>power the GPS by hand (diagnostics; the tracker takes it back over)</td>
+</tr>
+<tr>
+<td><code>reboot</code></td>
+<td>apply channel, radio and name changes</td>
+</tr>
+<tr>
+<td><code>ver</code>, <code>help</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Each <code>set</code> is saved immediately; channel, radio and name changes take effect after <code>reboot</code>.</p>
+<h2 id="tuning-the-motion-threshold">Tuning the motion threshold</h2>
+<p><code>motion</code> is the accelerometer's any-motion threshold. The default (32) stayed quiet on a unit at rest and
+fired on a hand shake, but it has <strong>not been tuned in a vehicle</strong>. If a parked unit keeps reporting <code>mv</code>,
+raise it; if a moving unit goes idle, lower it. <code>accel</code> shows the interrupt counter, which should stay
+flat while still. <code>idle_holdoff_sec</code> already absorbs short stops.</p>
+<h2 id="tests">Tests</h2>
+<ul>
+<li><code>g++ -std=c++14 -o /tmp/sched examples/gps_tracker/tests/scheduler_test.cpp &amp;&amp; /tmp/sched</code> - the
+  moving/idle state machine (<code>ReportScheduler.h</code>, hardware independent)</li>
+<li><code>python3 tools/test_provision_tracker.py</code>, <code>python3 tools/test_parse_tracker_message.py</code></li>
+</ul>
+<h2 id="compile-time-defaults">Compile-time defaults</h2>
+<p>Used until a unit is provisioned: <code>TRACKER_CHANNEL_NAME</code>, <code>TRACKER_CHANNEL_PSK</code>, <code>TRACKER_NODE_NAME</code>,
+<code>TRACKER_INTERVAL_SEC</code>, <code>TRACKER_MIN_INTERVAL_SEC</code>, <code>TRACKER_IDLE_INTERVAL_SEC</code>, <code>TRACKER_IDLE_HOLDOFF_SEC</code>,
+<code>TRACKER_FIX_TIMEOUT_SEC</code>, <code>TRACKER_FIX_SETTLE_SEC</code>, <code>TRACKER_MOVE_DIST_M</code>, <code>TRACKER_MOTION_THRESHOLD</code>,
+<code>TRACKER_NOFIX_MODE</code>, <code>TRACKER_NOFIX_NOTIFY_INTERVAL_SEC</code>, <code>TRACKER_GPS_BAUD</code> (XIAO), and the usual
+<code>LORA_FREQ</code>/<code>LORA_BW</code>/<code>LORA_SF</code>/<code>LORA_CR</code>/<code>LORA_TX_POWER</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.action.edit", "content.code.copy", "search.highlight", "search.suggest"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
