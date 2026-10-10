@@ -17,3 +17,8 @@ compile_commands.json
 .venv/
 venv/
 platformio.local.ini
+
+# tracker provisioning configs contain channel keys; only the example is tracked
+tools/*.json
+!tools/tracker_config.example.json
+__pycache__/

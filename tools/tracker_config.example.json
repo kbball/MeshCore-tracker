@@ -1,0 +1,17 @@
+{
+  "channel_name": "race",
+  "channel_psk": "dHJhY2tlci10ZXN0LWtleQ==",
+  "interval_sec": 300,
+  "nofix_mode": "notify",
+  "nofix_notify_interval_sec": 1800,
+  "freq": 910.525,
+  "bw": 62.5,
+  "sf": 7,
+  "cr": 5,
+  "tx_power": 22,
+  "idle_interval_sec": 1800,
+  "idle_holdoff_sec": 300,
+  "fix_timeout_sec": 90,
+  "move_distance_m": 25,
+  "motion_threshold": 32
+}

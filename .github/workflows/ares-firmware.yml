@@ -1,0 +1,127 @@
+name: ARES firmware
+
+# Builds the fixed set of boards the ARES team uses (.github/ares-firmware.json) and publishes
+# them as a GitHub Release that meshcore-fleet-setup and the aredn-go-box download.
+#
+#   git tag ares-v1.0.0 && git push origin ares-v1.0.0
+#
+# The tag must have exactly one hyphen: the version is everything after the last one
+# (see .github/actions/setup-build-environment). Use ares-v1.2.0, not ares-v1.2.0-rc1.
+# Run by hand (workflow_dispatch) to build everything without publishing.
+on:
+  push:
+    tags: ["ares-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the release
+
+concurrency:
+  group: ares-firmware-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The repository whose scripts/build-firmware-manifest.mjs writes manifest.json.
+  FLEET_REPO: kbball/meshcore-fleet-setup
+  FLEET_REF: main
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: m
+        run: echo "matrix=$(jq -c . .github/ares-firmware.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # see every board that fails, not just the first
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-build-environment
+      - name: Build ${{ matrix.env }}
+        env:
+          FIRMWARE_VERSION: ${{ env.GIT_TAG_VERSION }}
+        run: bash build.sh build-firmware ${{ matrix.env }}
+      - name: Keep the DFU package
+        run: |
+          set -e
+          ls out
+          zip=$(ls out/*.zip | head -1)
+          [ -n "$zip" ] || { echo "no .zip produced for ${{ matrix.env }}"; exit 1; }
+          mkdir -p dist && cp "$zip" "dist/${{ matrix.env }}.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fw-${{ matrix.env }}
+          path: dist/${{ matrix.env }}.zip
+          if-no-files-found: error
+
+  release:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-build-environment
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/checkout@v6
+        with:
+          repository: ${{ env.FLEET_REPO }}
+          ref: ${{ env.FLEET_REF }}
+          path: fleet
+          sparse-checkout: scripts
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: fw-*
+          path: dl
+
+      - name: Build manifest.json and the firmware folder
+        id: pack
+        run: |
+          set -euo pipefail
+          # The firmware's own version string is <tag version>-<short commit> (build.sh).
+          version="${GIT_TAG_VERSION}-$(git rev-parse --short HEAD)"
+          args=()
+          while IFS=$'\t' read -r env board kind; do
+            args+=(--entry "${env}|${board}|${kind}|dl/fw-${env}/${env}.zip")
+          done < <(jq -r '.[] | [.env, .board, .kind] | @tsv' .github/ares-firmware.json)
+          node fleet/scripts/build-firmware-manifest.mjs --dir out/firmware --version "$version" --keep 1 "${args[@]}"
+          tarball="ares-firmware-${version}.tar.gz"
+          tar -C out/firmware -czf "$tarball" .
+          cp out/firmware/manifest.json manifest.json
+          {
+            echo "version=$version"
+            echo "tarball=$tarball"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### ARES firmware $version"
+            echo
+            echo "| Env | Board | Kind |"
+            echo "|---|---|---|"
+            jq -r '.[] | "| \(.env) | \(.board) | \(.kind) |"' .github/ares-firmware.json
+          } | tee release-notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dry run (not a tag), keep the bundle as a workflow artifact
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.pack.outputs.tarball }}
+          path: ${{ steps.pack.outputs.tarball }}
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          name: "ARES firmware ${{ steps.pack.outputs.version }}"
+          body_path: release-notes.md
+          files: |
+            ${{ steps.pack.outputs.tarball }}
+            manifest.json
+            dl/fw-*/*.zip
