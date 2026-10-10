@@ -17,7 +17,7 @@ The ARES team uses a fixed set of boards. One tag builds all of them and publish
 | `t1000e_gps_tracker` | Seeed T-1000-E | sweep tracker |
 | `Xiao_nrf52_gps_tracker` | Seeed XIAO nRF52840 | sweep tracker |
 
-The gateway is listed as kind `companion` in the manifest: the fleet tool's manifest has no `gateway` kind yet.
+The gateway is listed as kind `gateway` in the manifest (the fleet tool accepts it since its PR #6; an older fleet-setup image rejects the unknown kind, so use a current one).
 To add or drop a board, edit the JSON file; nothing else changes.
 
 ## Releasing
