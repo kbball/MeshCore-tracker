@@ -17,6 +17,7 @@ Commands:
   build-companion-firmwares: Build all companion firmwares for all build targets.
   build-repeater-firmwares: Build all repeater firmwares for all build targets.
   build-room-server-firmwares: Build all chat room server firmwares for all build targets.
+  build-gps-tracker-firmwares: Build all GPS tracker firmwares (not part of build-firmwares).
 
 Examples:
 Build firmware for the "RAK_4631_repeater" device target
@@ -256,6 +257,16 @@ build_kiss_modem_firmwares() {
 
 }
 
+build_gps_tracker_firmwares() {
+
+#  # build specific gps tracker firmwares
+#  build_firmware "t1000e_gps_tracker"
+#  build_firmware "Xiao_nrf52_gps_tracker"
+
+  build_all_firmwares_by_suffix "_gps_tracker"
+
+}
+
 build_firmwares() {
   build_companion_firmwares
   build_repeater_firmwares
@@ -292,6 +303,8 @@ elif [[ $1 == "build-repeater-firmwares" ]]; then
   build_repeater_firmwares
 elif [[ $1 == "build-room-server-firmwares" ]]; then
   build_room_server_firmwares
+elif [[ $1 == "build-gps-tracker-firmwares" ]]; then
+  build_gps_tracker_firmwares
 elif [[ $1 == "build-kiss-radio-firmwares" ]]; then
   build_kiss_modem_firmwares
 elif [[ $1 == "get-companion-firmwares-to-build" ]]; then

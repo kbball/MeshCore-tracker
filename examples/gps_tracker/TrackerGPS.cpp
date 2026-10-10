@@ -1,0 +1,84 @@
+#include "TrackerGPS.h"
+#include <target.h>
+
+#if defined(T1000_E)
+
+#include <helpers/sensors/LocationProvider.h>
+
+static bool gps_powered = false;
+
+void tracker_gps_begin() {
+  sensors.begin();                        // opens Serial1 to the GNSS chip
+  tracker_gps_power(true);
+}
+
+void tracker_gps_power(bool on) {
+  if (on == gps_powered) return;
+  LocationProvider* gps = sensors.getLocationProvider();
+  if (on) {
+    sensors.setSettingValue("gps", "1");  // power sequencing (see T1000SensorManager::start_gps)
+    if (gps) gps->syncTime();             // forgets the previous fix, so only a new one counts; also re-syncs the clock
+  } else {
+    sensors.setSettingValue("gps", "0");  // sleep_gps(): rails off but the backup supply stays up for a fast hot start
+  }
+  gps_powered = on;
+}
+
+bool tracker_gps_powered() { return gps_powered; }
+
+void tracker_gps_loop() {
+  sensors.loop();                         // pumps NMEA, syncs the RTC from GPS time
+}
+
+bool tracker_gps_get_fix(TrackerFix& fix) {
+  LocationProvider* gps = sensors.getLocationProvider();
+  fix.valid = gps_powered && gps != NULL && gps->isValid();
+  if (!fix.valid) return false;
+
+  fix.lat_e6 = gps->getLatitude();
+  fix.lon_e6 = gps->getLongitude();
+  fix.alt_m = gps->getAltitude() / 1000;  // mm -> m
+  fix.sats = gps->satellitesCount();
+  return true;
+}
+
+#elif defined(XIAO_NRF52)
+
+// Seeed L76K GNSS module for XIAO: NMEA over the XIAO hardware UART (Serial1: D6 = TX, D7 = RX).
+// The module has no enable pin, so the receiver runs continuously. D6/D7 are shared with I2C
+// on this variant, so the tracker build must not start Wire (see XIAO_NO_I2C in target.cpp).
+#include <helpers/sensors/MicroNMEALocationProvider.h>
+
+#ifndef TRACKER_GPS_BAUD
+  #define TRACKER_GPS_BAUD   9600   // L76K factory default
+#endif
+
+static MicroNMEALocationProvider gps_nmea(Serial1, &rtc_clock);
+
+void tracker_gps_begin() {
+  Serial1.begin(TRACKER_GPS_BAUD);
+  gps_nmea.begin();
+}
+
+// The L76K has no enable pin, so it can't be switched off: it simply stays on.
+void tracker_gps_power(bool on) { }
+bool tracker_gps_powered() { return true; }
+
+void tracker_gps_loop() {
+  gps_nmea.loop();   // pumps NMEA, syncs the RTC from GPS time
+}
+
+bool tracker_gps_get_fix(TrackerFix& fix) {
+  fix.valid = gps_nmea.isValid();
+  if (!fix.valid) return false;
+
+  fix.lat_e6 = gps_nmea.getLatitude();
+  fix.lon_e6 = gps_nmea.getLongitude();
+  fix.alt_m = gps_nmea.getAltitude() / 1000;   // mm -> m
+  fix.sats = gps_nmea.satellitesCount();
+  return true;
+}
+
+#else
+  #error "gps_tracker: no GPS support for this board yet (see TrackerGPS.cpp)"
+#endif
