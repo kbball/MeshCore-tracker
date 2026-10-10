@@ -862,7 +862,7 @@
 </tr>
 </tbody>
 </table>
-<p>The gateway is listed as kind <code>companion</code> in the manifest: the fleet tool's manifest has no <code>gateway</code> kind yet.
+<p>The gateway is listed as kind <code>gateway</code> in the manifest (the fleet tool accepts it since its PR #6; an older fleet-setup image rejects the unknown kind, so use a current one).
 To add or drop a board, edit the JSON file; nothing else changes.</p>
 <h2 id="releasing">Releasing</h2>
 <pre><code class="language-sh">git tag ares-v1.0.0
