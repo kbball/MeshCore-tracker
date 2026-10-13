@@ -75,9 +75,11 @@ the camera's UART and posts a channel text when the camera reports a person.
 - Camera lines are parsed by `CameraLine.h`, a copy of the parse half of `common/lib/CameraMsg` in
   `runner-early-warning`. Keep them in sync. The message formats (`runner score=..`, `alive bat=.. alerts=..`,
   `test bat=..`) are parsed by fleet tooling: keep them stable.
-- The build sets `XIAO_NO_I2C` (D6/D7 carry the camera UART).
+- The camera UART is `Serial2` on D0 (RX only; env flags `PIN_SERIAL2_RX=0`, `PIN_SERIAL2_TX=13`). `Serial1` on D6/D7 is for
+  the optional L76K GNSS module, used for time only (`RUNNER_GPS`); the build sets `XIAO_NO_I2C`. The GPS has no enable
+  pin so it draws all the time; accepted for deployments of about 36 hours.
 - Not in `.github/ares-firmware.json` yet: it needs a new manifest kind and the fleet-setup app must accept it first
   (see `docs/ares_firmware.md`).
-- No clock source: `set time` over the CLI; saved hourly in the prefs file and restored on boot.
+- Clock: GPS sets it when there is a fix; otherwise `set time` over the CLI. Saved hourly in the prefs file and restored on boot.
 - Tests: `examples/runner_alert/tests/alert_policy_test.cpp` (g++).
 - Status: compiles; not yet run on hardware.

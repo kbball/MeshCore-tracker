@@ -15,13 +15,27 @@
 #include "AlertPolicy.h"
 #include "CameraLine.h"
 
+// Optional Seeed L76K GNSS module for XIAO (NMEA on Serial1: D6 = TX, D7 = RX). Used for time only: it sets the
+// clock from GPS time once there is a fix. Build with -D RUNNER_GPS=0 for a unit without one.
+#ifndef RUNNER_GPS
+  #define RUNNER_GPS 1
+#endif
+#if RUNNER_GPS
+  #include <helpers/sensors/MicroNMEALocationProvider.h>
+  #ifndef RUNNER_GPS_BAUD
+    #define RUNNER_GPS_BAUD 9600   // L76K factory default
+  #endif
+  static MicroNMEALocationProvider gps_nmea(Serial1, &rtc_clock);
+#endif
+
 // From the base64 library. Not #included: it is a header-only implementation that BaseChatMesh.cpp already
 // compiles in, so including it here too would define every function twice.
 unsigned int decode_base64(const unsigned char input[], unsigned int input_length, unsigned char output[]);
 
 /*
  * Runner alert node for the early-warning system. It sits next to the early-warning camera, reads the camera's
- * UART, and posts a short text on one MeshCore channel when the camera reports a runner. Built like the GPS
+ * UART, and posts a short text on one MeshCore channel when the camera reports a runner. An optional L76K GNSS
+ * module sets its clock. Built like the GPS
  * tracker: send-only (never advertises, never forwards, ignores everything it hears), the radio sleeps between
  * sends, and everything is provisioned over the USB serial CLI. See docs/runner_alert.md.
  */
@@ -85,7 +99,9 @@ unsigned int decode_base64(const unsigned char input[], unsigned int input_lengt
 #ifndef RUNNER_FIRST_STATUS_SEC
   #define RUNNER_FIRST_STATUS_SEC         15
 #endif
-// The camera's UART (Serial1: D7 = RX; D6 = TX, unused)
+// The camera's UART is Serial2 (UARTE1): D0 = RX, the only pin it needs. The env defines PIN_SERIAL2_RX=0 and
+// PIN_SERIAL2_TX=13 (the green LED pin, only so the core has a valid TX pin; nothing is ever sent). Serial1 stays
+// on D6/D7 for the GPS, which is why the camera is not on D7.
 #ifndef RUNNER_UART_BAUD
   #define RUNNER_UART_BAUD                115200
 #endif
@@ -148,6 +164,10 @@ class RunnerMesh : public BaseChatMesh {
   int _cam_len;
   bool _cam_overflow;
   uint32_t _cam_ok, _cam_noise;
+
+  // where the clock came from: 0 = nothing yet (the 2024 default), 1 = saved or set by hand, 2 = GPS
+  uint8_t _time_source;
+  unsigned long _gps_valid_since;
 
   // CLI
   char _cmd[160];
@@ -297,8 +317,8 @@ class RunnerMesh : public BaseChatMesh {
   }
 
   void pollCamera() {
-    while (Serial1.available()) {
-      int c = Serial1.read();
+    while (Serial2.available()) {
+      int c = Serial2.read();
       if (c < 0 || c == '\r') continue;
       if (c == '\n') {
         if (!_cam_overflow && _cam_len > 0) {
@@ -312,6 +332,26 @@ class RunnerMesh : public BaseChatMesh {
       if (_cam_len < (int)sizeof(_cam) - 1) _cam[_cam_len++] = (char)c;
       else _cam_overflow = true;
     }
+  }
+
+  /* ------------------------------------ GPS (time only) ------------------------------ */
+
+  // The provider sets the RTC from GPS time itself once a fix has held for a few seconds (and again every
+  // 30 minutes). We only watch for that so the status can say where the clock came from.
+  void pollGps() {
+#if RUNNER_GPS
+    gps_nmea.loop();
+    if (gps_nmea.isValid()) {
+      if (_gps_valid_since == 0) _gps_valid_since = millis() | 1;
+      if (_time_source < 2 && (long)(millis() - _gps_valid_since) > 5000) {
+        _time_source = 2;
+        saveTime();
+        Serial.printf("clock set from GPS: %lu\n", (unsigned long)getRTCClock()->getCurrentTime());
+      }
+    } else {
+      _gps_valid_since = 0;
+    }
+#endif
   }
 
   /* ------------------------------------- CLI ----------------------------------------- */
@@ -340,7 +380,13 @@ class RunnerMesh : public BaseChatMesh {
 
   void printStatus() {
     printConfig();
-    Serial.printf("time=%lu\n", (unsigned long)getRTCClock()->getCurrentTime());
+    static const char* const sources[] = { "none", "saved", "gps" };
+    Serial.printf("time=%lu source=%s\n", (unsigned long)getRTCClock()->getCurrentTime(), sources[_time_source]);
+#if RUNNER_GPS
+    Serial.printf("gps=%s sats=%ld\n", gps_nmea.isValid() ? "fix" : "no fix", (long)gps_nmea.satellitesCount());
+#else
+    Serial.println("gps=not built");
+#endif
     Serial.printf("camera_lines=%lu noise_lines=%lu\n", (unsigned long)_cam_ok, (unsigned long)_cam_noise);
     Serial.printf("alerts=%lu suppressed=%lu none_verdicts=%lu\n", (unsigned long)_policy.alerts(),
                   (unsigned long)_policy.suppressed(), (unsigned long)_policy.noneVerdicts());
@@ -383,6 +429,7 @@ class RunnerMesh : public BaseChatMesh {
       if (!parse_uint(val, n) || n < 1700000000UL) return "time must be a unix epoch in seconds";
       getRTCClock()->setCurrentTime(n);
       _prefs.saved_time = n;
+      if (_time_source < 1) _time_source = 1;
     } else if (strcmp(args, "freq") == 0) {
       float f = atof(val);
       if (f < 150.0f || f > 960.0f) return "freq must be 150-960 MHz";
@@ -442,7 +489,7 @@ class RunnerMesh : public BaseChatMesh {
       Serial.println("   set channel <psk_base64> <name>");
       Serial.printf("   set alert_interval <sec>    (min gap between alerts, min %d)\n", RUNNER_MIN_ALERT_INTERVAL_SEC);
       Serial.printf("   set status_interval <sec>   (heartbeat, min %d)\n", RUNNER_MIN_STATUS_INTERVAL_SEC);
-      Serial.println("   set time <unix epoch>       (the node has no clock; saved hourly across reboots)");
+      Serial.println("   set time <unix epoch>       (fallback when there is no GPS fix; saved hourly across reboots)");
       Serial.println("   set freq|bw|sf|cr|tx <value>");
       Serial.println("   test                        (send a test message now)");
       Serial.println("   cam <line>                  (feed a camera line, e.g. cam EW,VERDICT,1,PERSON,90)");
@@ -516,6 +563,8 @@ public:
     _cam_len = 0;
     _cam_overflow = false;
     _cam_ok = _cam_noise = 0;
+    _time_source = 0;
+    _gps_valid_since = 0;
     _cmd_len = 0;
     setDefaults();
   }
@@ -541,7 +590,10 @@ public:
     loadPrefs();
 
     // No battery-backed clock: start from the last saved time (or whatever 'set time' stored) instead of 2024.
-    if (_prefs.saved_time > getRTCClock()->getCurrentTime()) getRTCClock()->setCurrentTime(_prefs.saved_time + 1);
+    if (_prefs.saved_time > getRTCClock()->getCurrentTime()) {
+      getRTCClock()->setCurrentTime(_prefs.saved_time + 1);
+      _time_source = 1;
+    }
 
     _channel = addChannel(_prefs.channel_name, _prefs.channel_psk);
     if (!_channel) {   // corrupt PSK in flash: fall back to the compiled-in default rather than not reporting
@@ -562,6 +614,7 @@ public:
     if (_radio_awake) BaseChatMesh::loop();   // moves queued packets out and completes transmissions
     pollSerial();
     pollCamera();
+    pollGps();
     if (!_channel) return;
 
     if (_policy.tick(millis()).action == runner::AlertPolicy::SEND_STATUS) sendStatus();
@@ -585,7 +638,11 @@ void setup() {
 
   if (!radio_init()) { halt(); }
 
-  Serial1.begin(RUNNER_UART_BAUD);   // camera UART: D7 = RX (D6 = TX, unused). Needs XIAO_NO_I2C: D6/D7 are I2C pins too.
+  Serial2.begin(RUNNER_UART_BAUD);   // camera UART: D0 = RX (see the env: PIN_SERIAL2_RX/TX)
+#if RUNNER_GPS
+  Serial1.begin(RUNNER_GPS_BAUD);    // L76K on D6/D7. Needs XIAO_NO_I2C: D6/D7 are I2C pins too.
+  gps_nmea.begin();
+#endif
 
   fast_rng.begin(radio_driver.getRngSeed());
 
@@ -604,6 +661,7 @@ void loop() {
   rtc_clock.tick();
 
   // Let the CPU sleep between passes. The camera's lines are short and sparse, but its boot text can burst
-  // at power-up, so keep the pause small enough that the UART buffer is drained.
+  // at power-up, and NMEA bursts from the GPS are longer still, so keep the pause small enough that the UART
+  // buffers are drained.
   delay(2);
 }
