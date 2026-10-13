@@ -20,6 +20,21 @@ The ARES team uses a fixed set of boards. One tag builds all of them and publish
 The gateway is listed as kind `gateway` in the manifest (the fleet tool accepts it since its PR #6; an older fleet-setup image rejects the unknown kind, so use a current one).
 To add or drop a board, edit the JSON file; nothing else changes.
 
+### Runner alert: a new device type, not released yet
+
+`Xiao_nrf52_runner_alert` (see [runner_alert.md](runner_alert.md)) is the MeshCore board of the runner early-warning
+node. It is **deliberately not in `ares-firmware.json` yet.** It needs a new manifest kind, and the fleet tool rejects
+a kind it does not know (as it did for `gateway` before its PR #6). So the order is:
+
+1. Patch [meshcore-fleet-setup](https://github.com/kbball/meshcore-fleet-setup) to accept the new kind and to
+   provision it: a profile, the Event tab (stations, trackers, and now runner alert nodes), and CLI provisioning over
+   Web Serial (`set name`, `set channel`, radio settings, `set time`; the CLI is in `runner_alert.md`). Release it.
+2. Then add the env to `.github/ares-firmware.json` with the new kind, and tag a release.
+3. Whatever shows channel messages (the go-box, the apps) also needs to recognise the `runner score=...` and
+   `alive bat=...` texts (formats in `runner_alert.md`).
+
+An older fleet-setup image will reject the unknown kind, so release the tool first.
+
 ## Releasing
 
 ```sh

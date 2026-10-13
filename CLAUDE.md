@@ -63,3 +63,21 @@ Status: T-1000-E verified on hardware (flash, provisioning, reports received on 
 interrupt, boot -> idle -> motion -> mv -> idle cycle, radio sleep + later sends complete). Not yet done:
 XIAO + L76K on hardware; the no-advert/no-forward behaviour on air; tuning `motion`/`idle_holdoff` in a real
 vehicle; measuring current draw (the estimates in discussion were never measured).
+
+## Runner alert
+
+Code in `examples/runner_alert/`; docs in `docs/runner_alert.md`; env `Xiao_nrf52_runner_alert` (`variants/xiao_nrf52/`).
+It is the MeshCore board of the runner early-warning node (a separate project, repo `runner-early-warning`): it reads
+the camera's UART and posts a channel text when the camera reports a person.
+
+- Built like the tracker: send-only, never advertises or forwards, radio asleep between sends, CLI provisioning.
+  Because it never listens, it cannot take commands over MeshCore (no remote arm/disarm).
+- Camera lines are parsed by `CameraLine.h`, a copy of the parse half of `common/lib/CameraMsg` in
+  `runner-early-warning`. Keep them in sync. The message formats (`runner score=..`, `alive bat=.. alerts=..`,
+  `test bat=..`) are parsed by fleet tooling: keep them stable.
+- The build sets `XIAO_NO_I2C` (D6/D7 carry the camera UART).
+- Not in `.github/ares-firmware.json` yet: it needs a new manifest kind and the fleet-setup app must accept it first
+  (see `docs/ares_firmware.md`).
+- No clock source: `set time` over the CLI; saved hourly in the prefs file and restored on boot.
+- Tests: `examples/runner_alert/tests/alert_policy_test.cpp` (g++).
+- Status: compiles; not yet run on hardware.
